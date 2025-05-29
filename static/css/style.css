@@ -1,0 +1,578 @@
+/* static/css/style.css */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #121212; /* Color de fondo oscuro */
+    color: #b3b3b3; /* Color de texto gris claro */
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+header {
+    background-color: #000;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #282828;
+}
+
+header h1 {
+    color: #1DB954; /* Color verde de Spotify */
+    margin: 0;
+}
+
+.user-info {
+    font-size: 1.1em;
+}
+
+.user-info button {
+    background-color: #1DB954;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 20px;
+    cursor: pointer;
+    margin-left: 15px;
+    font-weight: bold;
+}
+
+main {
+    display: flex;
+    flex: 1;
+    padding: 20px;
+}
+
+.sidebar {
+    width: 250px;
+    background-color: #000;
+    padding: 20px;
+    border-right: 1px solid #282828;
+    border-radius: 8px;
+    margin-right: 20px;
+}
+
+.sidebar h2 {
+    color: #fff;
+    margin-top: 0;
+    border-bottom: 1px solid #282828;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+#playlist-types {
+    list-style: none;
+    padding: 0;
+}
+
+#playlist-types button {
+    background: none;
+    border: none;
+    color: #b3b3b3;
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 10px 0;
+    font-size: 1.1em;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+#playlist-types button:hover:not(:disabled) {
+    color: #fff;
+}
+
+#playlist-types button.disabled-premium {
+    color: #535353;
+    cursor: not-allowed;
+}
+
+
+.main-content {
+    flex: 1;
+    background-color: #181818;
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.playlist-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #282828;
+    padding-bottom: 15px;
+}
+
+.playlist-controls h2 {
+    color: #fff;
+    margin: 0;
+    font-size: 1.5em;
+}
+
+.playlist-controls button {
+    background-color: #1DB954;
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.2s;
+}
+
+.playlist-controls button:hover {
+    background-color: #168a3f;
+}
+
+.current-playback {
+    background-color: #282828;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.current-playback h3 {
+    color: #fff;
+    margin-top: 0;
+}
+
+.current-playback p {
+    font-size: 1.2em;
+    color: #1DB954;
+    font-weight: bold;
+}
+
+.player-controls button {
+    background-color: #333;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    margin: 0 5px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.2s;
+}
+
+.player-controls button:hover:not(:disabled) {
+    background-color: #555;
+}
+
+.player-controls button:disabled {
+    background-color: #535353;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.playlist-display h3 {
+    color: #fff;
+    margin-top: 0;
+}
+
+#songs-list {
+    list-style: none;
+    padding: 0;
+}
+
+.song-item {
+    background-color: #282828;
+    padding: 10px 15px;
+    margin-bottom: 8px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.song-item.current-song {
+    background-color: #1DB954;
+    color: #fff;
+    font-weight: bold;
+}
+
+.song-item span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.song-number {
+    width: 25px;
+    text-align: right;
+}
+
+.song-title {
+    flex: 2;
+    min-width: 0; /* Permite que el texto se trunque */
+}
+
+.song-artist {
+    flex: 1.5;
+    color: #b3b3b3;
+    min-width: 0;
+}
+.song-item.current-song .song-artist {
+    color: #fff;
+}
+
+
+.song-duration {
+    width: 50px;
+    text-align: right;
+    color: #b3b3b3;
+}
+.song-item.current-song .song-duration {
+    color: #fff;
+}
+
+footer {
+    background-color: #000;
+    color: #b3b3b3;
+    text-align: center;
+    padding: 15px;
+    margin-top: auto; /* Empuja el footer hacia abajo */
+    border-top: 1px solid #282828;
+}
+
+/* Modal Styles */
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 1; /* Sit on top */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background-color: #181818;
+    margin: auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%; /* Could be more specific */
+    max-width: 500px;
+    border-radius: 8px;
+    color: #b3b3b3;
+    position: relative;
+}
+
+.close-button {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    cursor: pointer;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: #fff;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.modal-content h2 {
+    color: #1DB954;
+    margin-top: 0;
+    margin-bottom: 20px;
+}
+
+.modal-content label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+}
+
+.modal-content input[type="text"] {
+    width: calc(100% - 20px);
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #555;
+    border-radius: 4px;
+    background-color: #333;
+    color: #fff;
+}
+
+.modal-content button {
+    background-color: #1DB954;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.2s;
+    display: block; /* Make button full width */
+    width: 100%;
+    margin-top: 20px;
+}
+
+.modal-content button:hover {
+    background-color: #168a3f;
+}
+/* static/css/style.css */
+/* ... (mantén tus estilos existentes) ... */
+
+body {
+    /* ... */
+    grid-template-areas:
+        "header header"
+        "sidebar main"
+        "footer footer"; /* Definir áreas para el layout de CSS Grid */
+    grid-template-columns: 250px 1fr; /* 250px para sidebar, el resto para main */
+    grid-template-rows: auto 1fr auto; /* Altura automática para header/footer, 1fr para main */
+}
+
+header {
+    grid-area: header;
+    /* ... tus estilos actuales ... */
+}
+
+.sidebar {
+    grid-area: sidebar;
+    background-color: #000;
+    padding: 20px;
+    border-right: 1px solid #282828;
+    border-radius: 0 8px 8px 0; /* Bordes redondeados solo a la derecha si es fija */
+    display: flex; /* Usar flexbox para el contenido de la barra lateral */
+    flex-direction: column;
+}
+
+.sidebar h2 {
+    color: #fff;
+    margin-top: 0;
+    border-bottom: 1px solid #282828;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.sidebar nav ul {
+    list-style: none;
+    padding: 0;
+    margin-bottom: 20px;
+}
+
+.sidebar nav button,
+#playlist-types button { /* Estilo para los botones del menú y tipos de playlist */
+    background: none;
+    border: none;
+    color: #b3b3b3;
+    display: flex; /* Para alinear ícono y texto si los tuvieras */
+    align-items: center;
+    gap: 10px; /* Espacio entre ícono y texto */
+    width: 100%;
+    text-align: left;
+    padding: 12px 15px;
+    font-size: 1.1em;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+    border-radius: 4px;
+}
+
+.sidebar nav button:hover:not(:disabled),
+#playlist-types button:hover:not(:disabled) {
+    color: #fff;
+    background-color: #282828; /* Un ligero cambio de fondo al pasar el ratón */
+}
+
+.sidebar nav button.active {
+    color: #fff;
+    background-color: #282828; /* Fondo más oscuro para la opción activa */
+    font-weight: bold;
+}
+
+.sidebar hr { /* Separador */
+    border: none;
+    border-top: 1px solid #282828;
+    margin: 20px 0;
+}
+
+
+.main-content {
+    grid-area: main;
+    background-color: #181818;
+    padding: 20px;
+    border-radius: 8px;
+    overflow-y: auto; /* Permite scroll si el contenido es muy largo */
+}
+
+.content-section {
+    display: none; /* Oculta todas las secciones por defecto */
+}
+
+.content-section.active {
+    display: block; /* Muestra solo la sección activa */
+}
+
+.content-section.hidden {
+    display: none;
+}
+
+footer {
+    grid-area: footer;
+    /* ... tus estilos actuales ... */
+}
+
+
+
+/* --- Estilos Generales --- */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #1a701f; /* Fondo oscuro similar a Spotify */
+    color: #b3b3b3; /* Texto gris claro */
+    min-height: 100vh; /* Asegura que el body ocupe al menos toda la altura de la vista */
+    display: flex;
+    flex-direction: column; /* Organiza el contenido en columna */
+}
+
+a {
+    color: #1DB954; /* Verde de Spotify para enlaces */
+    text-decoration: none; /* Quita el subrayado por defecto */
+}
+
+a:hover {
+    text-decoration: underline;
+    color: #1ed760; /* Verde más claro al pasar el ratón */
+}
+
+/* --- Estilos de la Cabecera (Header) --- */
+.main-header {
+    background-color: #000; /* Fondo negro */
+    padding: 15px 0; /* Relleno superior e inferior */
+    border-bottom: 1px solid #282828; /* Línea separadora */
+}
+
+.header-content {
+    max-width: 1200px; /* Ancho máximo del contenido */
+    margin: 0 auto; /* Centra el contenido */
+    display: flex;
+    justify-content: space-between; /* Espacio entre logo y navegación */
+    align-items: center; /* Alinea verticalmente */
+    padding: 0 20px; /* Relleno lateral */
+}
+
+.main-header .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Espacio entre logo y texto */
+    color: #1DB954; /* Color del texto del logo */
+    font-size: 1.5em;
+    font-weight: bold;
+}
+
+.main-header .logo img {
+    height: 40px; /* Tamaño del logo */
+    width: auto;
+}
+
+.main-nav ul {
+    list-style: none; /* Quita los puntos de la lista */
+    margin: 0;
+    padding: 0;
+    display: flex; /* Para que los elementos estén en línea */
+    gap: 25px; /* Espacio entre los enlaces */
+}
+
+.main-nav .nav-link {
+    color: #b3b3b3; /* Color de texto de los enlaces */
+    font-size: 1.1em;
+    font-weight: bold;
+    transition: color 0.3s ease; /* Transición suave del color */
+}
+
+.main-nav .nav-link:hover {
+    color: #fff; /* Blanco al pasar el ratón */
+    text-decoration: none; /* Asegura que no se subraye al pasar el ratón */
+}
+
+/* Estilo específico para el botón de Login (si lo quieres diferente) */
+.main-nav .login-btn {
+    background-color: #1DB954; /* Fondo verde */
+    color: #fff; /* Texto blanco */
+    padding: 8px 20px;
+    border-radius: 20px; /* Bordes redondeados */
+    transition: background-color 0.3s ease;
+}
+
+.main-nav .login-btn:hover {
+    background-color: #1ed760; /* Verde más claro al pasar el ratón */
+    text-decoration: none;
+}
+
+
+/* --- Estilos del Pie de Página (Footer) --- */
+.main-footer {
+    background-color: #000;
+    padding: 20px 0;
+    border-top: 1px solid #282828;
+    margin-top: auto; /* Empuja el footer hacia la parte inferior */
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-wrap: wrap; /* Permite que los elementos se envuelvan en pantallas pequeñas */
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    text-align: center; /* Centra el texto por defecto */
+}
+
+.main-footer p {
+    margin: 0;
+    font-size: 0.9em;
+    color: #888; /* Gris más oscuro para el copyright */
+}
+
+.social-links {
+    display: flex;
+    gap: 15px;
+    margin: 10px 0; /* Espacio vertical en pantallas pequeñas */
+}
+
+.social-links .social-icon {
+    color: #b3b3b3;
+    font-size: 0.9em;
+}
+
+.footer-nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    gap: 20px;
+}
+
+.footer-nav a {
+    color: #b3b3b3;
+    font-size: 0.9em;
+}
+
+/* Responsive adjustments for footer */
+@media (max-width: 768px) {
+    .footer-content {
+        flex-direction: column; /* Apila elementos en columnas */
+        gap: 15px;
+    }
+}
+
+/* Asegúrate de que tu main content tenga flex-grow para ocupar el espacio restante */
+main {
+    flex-grow: 1; /* Esto es crucial para que el footer se quede abajo */
+    /* ... tus estilos existentes para main ... */
+}
