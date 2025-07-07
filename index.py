@@ -1,8 +1,10 @@
-# app.py
+#app.py
 
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session, render_template
 import os
 
+
+app = Flask(__name__)
 # --- Clases de tu lógica de negocio (Song, User, Playlist, etc.) ---
 
 # Clase Song
