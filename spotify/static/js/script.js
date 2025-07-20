@@ -1,390 +1,688 @@
-// static/js/script.js
+// Definir onSpotifyWebPlaybackSDKReady globalmente
+console.log("Definiendo onSpotifyWebPlaybackSDKReady");
+window.onSpotifyWebPlaybackSDKReady = () => {
+    console.log("Spotify Web Playback SDK listo");
+    spotifyPlayer = new Spotify.Player({
+        name: 'Spotify 2.0',
+        getOAuthToken: cb => {
+            fetch('/api/get_access_token')
+                .then(response => response.json())
+                .then(data => cb(data.access_token))
+                .catch(error => console.error('Error al obtener token:', error));
+        },
+        volume: 0.5
+    });
+
+    spotifyPlayer.addListener('ready', ({ device_id }) => {
+        console.log('Dispositivo listo con ID:', device_id);
+        sessionStorage.setItem('device_id', device_id);
+    });
+
+    spotifyPlayer.addListener('not_ready', ({ device_id }) => {
+        console.log('Dispositivo no listo:', device_id);
+        sessionStorage.removeItem('device_id');
+    });
+
+    spotifyPlayer.addListener('player_state_changed', state => {
+        if (state && state.paused) {
+            playPauseBtn.textContent = '▶️ Play';
+        } else {
+            playPauseBtn.textContent = '⏸️ Pause';
+        }
+    });
+
+    spotifyPlayer.connect();
+};
 
 document.addEventListener('DOMContentLoaded', () => {
-    // --- Elementos del DOM ---
+    console.log("¡Script.js cargado y DOM listo!");
+
+    let currentCustomPlaylist = { songs: [], current_song_index: -1 };
+    let spotifyUserProfile = null;
+    let spotifyPlayer = null;
+
+    const welcomeMessage = document.getElementById('welcome-message');
     const usernameDisplay = document.getElementById('username-display');
     const premiumStatus = document.getElementById('premium-status');
     const upgradeBtn = document.getElementById('upgrade-btn');
-
-    // Menú principal y secciones de contenido
-    const mainMenuButtons = document.querySelectorAll('#main-menu button');
-    const contentSections = document.querySelectorAll('.content-section');
-
-    // Tipos de playlist
-    const playlistTypeButtons = document.querySelectorAll('#playlist-types button');
-
-    // Controles de la playlist (en la sección de gestión)
-    const currentPlaylistTypeDisplay = document.getElementById('current-playlist-type');
+    const aboutBtn = document.getElementById('about-btn');
+    const searchBtn = document.getElementById('search-btn');
+    const searchSectionBtn = document.getElementById('search-section-btn');
+    const searchInput = document.getElementById('search-input');
+    const searchInputSection = document.getElementById('search-input-section');
+    const searchResults = document.getElementById('search-results');
     const addSongBtn = document.getElementById('add-song-btn');
     const removeSongBtn = document.getElementById('remove-song-btn');
     const resetPlaylistBtn = document.getElementById('reset-playlist-btn');
-    const currentSongInfo = document.getElementById('current-song-info');
     const prevBtn = document.getElementById('prev-btn');
+    const playPauseBtn = document.getElementById('play-pause-btn');
     const nextBtn = document.getElementById('next-btn');
     const songsList = document.getElementById('songs-list');
-
-    // Modal para añadir canción
+    const currentSongInfo = document.getElementById('current-song-info');
+    const currentPlaylistType = document.getElementById('current-playlist-type');
     const addSongModal = document.getElementById('addSongModal');
-    const closeModalButton = document.querySelector('.close-button');
+    const closeModalBtn = document.querySelector('.close-button');
+    const addSongForm = document.getElementById('add-song-form');
     const songTitleInput = document.getElementById('songTitle');
     const songArtistInput = document.getElementById('songArtist');
     const songDurationInput = document.getElementById('songDuration');
     const songGenreInput = document.getElementById('songGenre');
-    const submitAddSongButton = document.getElementById('submitAddSong');
+    const songFileInput = document.getElementById('songFile');
+    const audioPlayer = document.getElementById('audio-player');
+    const volumeControl = document.getElementById('volume-control');
+    const menuButtons = document.querySelectorAll('#main-menu button');
+    const playlistTypeButtons = document.querySelectorAll('#playlist-types button');
 
-
-    // --- Funciones para interactuar con el Backend (Flask) ---
-
-    /**
-     * Obtiene y muestra la información del usuario (nombre, estado premium).
-     */
-    async function fetchUserInfo() {
-        try {
-            const response = await fetch('/api/user_info');
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-            usernameDisplay.textContent = data.username;
-            premiumStatus.textContent = data.is_premium ? 'Premium' : 'Gratuito';
-
-            // Muestra u oculta el botón de upgrade a Premium
-            if (!data.is_premium) {
-                upgradeBtn.style.display = 'inline-block';
-            } else {
-                upgradeBtn.style.display = 'none';
-            }
-            // Actualiza el estado de los botones de tipo de playlist según si es Premium
-            updatePlaylistTypeButtons(data.is_premium);
-        } catch (error) {
-            console.error('Error al obtener la información del usuario:', error);
-            alert('No se pudo cargar la información del usuario.');
-        }
+    function formatDuration(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${minutes}:${secs.toString().padStart(2, '0')}`;
     }
 
-    /**
-     * Envía una solicitud para que el usuario actual se convierta en Premium.
-     */
-    async function upgradeToPremium() {
-        try {
-            const response = await fetch('/api/upgrade_premium', { method: 'POST' });
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-            alert(data.message);
-            await fetchUserInfo(); // Refresca la información del usuario
-            await fetchPlaylistData(); // Refresca la playlist actual (por si cambia el tipo)
-        } catch (error) {
-            console.error('Error al actualizar a premium:', error);
-            alert('Hubo un error al intentar actualizar a premium.');
-        }
+    function showMessage(message, type = 'info') {
+        const messageContainer = document.getElementById('message-container');
+        if (!messageContainer) return;
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type}`;
+        alertDiv.textContent = message;
+        messageContainer.appendChild(alertDiv);
+        setTimeout(() => alertDiv.remove(), 5000);
     }
 
-    /**
-     * Obtiene y muestra los datos de la playlist actual (tipo, canciones, canción actual).
-     */
+    function updateUI() {
+        console.log("Actualizando UI...");
+        const userDataElement = document.getElementById('user-data');
+        if (welcomeMessage) welcomeMessage.textContent = '';
+        if (usernameDisplay) usernameDisplay.textContent = '';
+        if (premiumStatus) premiumStatus.textContent = '';
+
+        if (userDataElement && userDataElement.textContent) {
+            try {
+                spotifyUserProfile = JSON.parse(userDataElement.textContent);
+                console.log("Perfil de usuario de Spotify:", spotifyUserProfile);
+                if (welcomeMessage) welcomeMessage.textContent = `Hola, ${spotifyUserProfile.display_name || spotifyUserProfile.id}!`;
+                if (usernameDisplay) usernameDisplay.textContent = spotifyUserProfile.display_name || spotifyUserProfile.id;
+                if (upgradeBtn) upgradeBtn.style.display = 'inline';
+                if (aboutBtn) aboutBtn.style.display = 'inline';
+            } catch (e) {
+                console.error("Error al parsear user-data:", e);
+                if (upgradeBtn) upgradeBtn.style.display = 'none';
+                if (aboutBtn) aboutBtn.style.display = 'none';
+            }
+        }
+
+        fetchPlaylistData().then(() => {
+            console.log("fetchPlaylistData completado, llamando a fetchUserPlaylists...");
+            fetchUserPlaylists();
+        });
+        fetch('/api/user_info')
+            .then(response => response.json())
+            .then(data => {
+                if (premiumStatus) {
+                    premiumStatus.textContent = data.is_premium ? 'Premium' : 'Gratis';
+                    if (upgradeBtn && !data.is_premium) {
+                        upgradeBtn.style.display = 'inline';
+                    }
+                }
+            })
+            .catch(error => {
+                showMessage('Error al cargar info de usuario.', 'danger');
+                console.error('Error en user_info:', error);
+            });
+    }
+
     async function fetchPlaylistData() {
         try {
-            const response = await fetch('/api/playlist_type');
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+            console.log("Solicitando /api/get_playlist...");
+            const response = await fetch('/api/get_playlist');
+            if (response.status === 401) {
+                showMessage('Sesión expirada. Inicia sesión nuevamente.', 'danger');
+                window.location.href = '/login';
+                return;
             }
             const data = await response.json();
-            // Muestra el tipo de playlist actual
-            currentPlaylistTypeDisplay.textContent = `Playlist Actual: ${data.type.replace('_', ' ').replace('simple', 'Simple Enlazada').replace('double', 'Doble Enlazada').replace('circular_simple', 'Circular Simple').replace('circular_double', 'Circular Doble')}`;
-
-            // Actualiza la lista de canciones en el DOM
-            updateSongsList(data.songs, data.current_song);
-            
-            // Habilita/deshabilita el botón 'Anterior' según la estructura de la playlist
-            prevBtn.disabled = !data.can_go_previous;
-
-            // Muestra la canción que se está reproduciendo actualmente
-            if (data.current_song) {
-                currentSongInfo.textContent = `${data.current_song.title} - ${data.current_song.artist} (${data.current_song.duration})`;
+            console.log("Respuesta de /api/get_playlist:", data);
+            if (response.ok) {
+                currentCustomPlaylist = data;
+                if (!currentCustomPlaylist.songs || !Array.isArray(currentCustomPlaylist.songs)) {
+                    console.warn("currentCustomPlaylist.songs no es un array, inicializando como vacío");
+                    currentCustomPlaylist.songs = [];
+                }
+                renderCustomPlaylist();
+                updatePlaybackControls();
+                if (currentPlaylistType) {
+                    currentPlaylistType.textContent = `Tipo de Playlist: ${currentCustomPlaylist.strategy_name || 'simple'}`;
+                }
             } else {
-                currentSongInfo.textContent = 'No hay canción reproduciéndose.';
+                showMessage(`Error al cargar playlist: ${data.error || 'Desconocido'}`, 'danger');
             }
-
         } catch (error) {
-            console.error('Error al obtener los datos de la playlist:', error);
-            // alert('No se pudo cargar la playlist. Inténtalo de nuevo.');
+            showMessage('Error de red al cargar playlist.', 'danger');
+            console.error('Error en fetchPlaylistData:', error);
         }
     }
 
-    /**
-     * Cambia el tipo de playlist actual en el backend.
-     * @param {string} type - El nuevo tipo de playlist (ej. 'simple', 'double').
-     */
-    async function selectPlaylistType(type) {
+    async function fetchUserPlaylists() {
+        console.log("Iniciando carga de playlists de Spotify...");
+        try {
+            const response = await fetch('/api/get_user_playlists');
+            console.log("Respuesta de /api/get_user_playlists:", response);
+            const data = await response.json();
+            console.log("Datos de playlists:", data);
+            if (response.ok) {
+                renderPlaylists(data.playlists || []);
+            } else {
+                showMessage(`Error al cargar playlists: ${data.error || 'Desconocido'}`, 'danger');
+            }
+        } catch (error) {
+            showMessage('Error de red al cargar playlists.', 'danger');
+            console.error('Error en fetchUserPlaylists:', error);
+        }
+    }
+
+    function renderPlaylists(playlists) {
+        const librarySection = document.getElementById('your-library-section');
+        if (!librarySection) {
+            console.error("No se encontró #your-library-section");
+            return;
+        }
+        librarySection.innerHTML = '<h2>Tus Playlists</h2>';
+        const ul = document.createElement('ul');
+        ul.className = 'list-group';
+        if (playlists.length === 0) {
+            ul.innerHTML = '<li class="list-group-item">No se encontraron playlists.</li>';
+        } else {
+            playlists.forEach(playlist => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item';
+                li.textContent = playlist.name;
+                li.style.cursor = 'pointer';
+                li.addEventListener('click', () => fetchPlaylistTracks(playlist.id));
+                ul.appendChild(li);
+            });
+        }
+        librarySection.appendChild(ul);
+    }
+
+    async function fetchPlaylistTracks(playlistId) {
+        try {
+            console.log("Cargando canciones de la playlist:", playlistId);
+            const response = await fetch(`/api/get_playlist_tracks?playlist_id=${playlistId}`);
+            const data = await response.json();
+            console.log("Respuesta de /api/get_playlist_tracks:", data);
+            if (response.ok) {
+                currentCustomPlaylist.songs = data.tracks || [];
+                currentCustomPlaylist.current_song_index = -1;
+                renderCustomPlaylist();
+                showMessage('Playlist cargada correctamente.', 'success');
+            } else {
+                showMessage(`Error al cargar canciones: ${data.error || 'Desconocido'}`, 'danger');
+            }
+        } catch (error) {
+            showMessage('Error de red al cargar canciones.', 'danger');
+            console.error('Error en fetchPlaylistTracks:', error);
+        }
+    }
+
+    function renderCustomPlaylist() {
+        if (!songsList) {
+            console.error("No se encontró #songs-list");
+            return;
+        }
+        songsList.innerHTML = '';
+
+        if (!currentCustomPlaylist.songs || currentCustomPlaylist.songs.length === 0) {
+            songsList.innerHTML = '<li>No hay canciones en la playlist.</li>';
+            currentSongInfo.textContent = 'Nada reproduciéndose.';
+            return;
+        }
+
+        currentCustomPlaylist.songs.forEach((song, index) => {
+            const listItem = document.createElement('li');
+            listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+            listItem.textContent = `${song.title} - ${song.artist} (${formatDuration(song.duration)})`;
+            if (index === currentCustomPlaylist.current_song_index) {
+                listItem.classList.add('active');
+            }
+            listItem.addEventListener('click', () => {
+                currentCustomPlaylist.current_song_index = index;
+                currentCustomPlaylist.current_song = song;
+                renderCustomPlaylist();
+                updateCurrentSongDisplay();
+            });
+            songsList.appendChild(listItem);
+        });
+
+        updateCurrentSongDisplay();
+    }
+
+    function updateCurrentSongDisplay() {
+        if (currentSongInfo && currentCustomPlaylist.current_song && currentCustomPlaylist.current_song.file_path) {
+            currentSongInfo.textContent = `Reproduciendo: ${currentCustomPlaylist.current_song.title} - ${currentCustomPlaylist.current_song.artist} (${formatDuration(currentCustomPlaylist.current_song.duration)})`;
+            if (audioPlayer) {
+                audioPlayer.src = currentCustomPlaylist.current_song.file_path;
+                audioPlayer.play().catch(e => console.error("Error al reproducir:", e));
+                playPauseBtn.textContent = '⏸️ Pause';
+            }
+        } else if (currentSongInfo && currentCustomPlaylist.current_song && currentCustomPlaylist.current_song.uri) {
+            currentSongInfo.textContent = `Reproduciendo (Spotify): ${currentCustomPlaylist.current_song.title} - ${currentCustomPlaylist.current_song.artist} (${formatDuration(currentCustomPlaylist.current_song.duration)})`;
+            if (spotifyPlayer && currentCustomPlaylist.current_song.uri) {
+                playSpotifyTrack(currentCustomPlaylist.current_song.uri);
+            }
+        } else {
+            currentSongInfo.textContent = 'Nada reproduciéndose.';
+            if (audioPlayer) {
+                audioPlayer.pause();
+                audioPlayer.src = '';
+                playPauseBtn.textContent = '▶️ Play';
+            }
+        }
+    }
+
+    function updatePlaybackControls() {
+        if (prevBtn) {
+            prevBtn.disabled = !currentCustomPlaylist.can_go_previous;
+        }
+        if (nextBtn) {
+            nextBtn.disabled = !currentCustomPlaylist.songs || currentCustomPlaylist.songs.length === 0 ||
+                             (currentCustomPlaylist.current_song_index >= currentCustomPlaylist.songs.length - 1 &&
+                              currentCustomPlaylist.strategy_name === 'simple');
+        }
+    }
+
+    async function addSong(event) {
+        event.preventDefault();
+        const title = songTitleInput.value;
+        const artist = songArtistInput.value;
+        const file = songFileInput.files[0];
+        const duration = songDurationInput.value || '3:00';
+        const genre = songGenreInput.value || 'Desconocido';
+
+        if (!title || !artist || !file) {
+            showMessage('Completa todos los campos y selecciona un archivo.', 'warning');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('title', title);
+        formData.append('artist', artist);
+        formData.append('file', file);
+        formData.append('duration', parseDuration(duration));
+        formData.append('genre', genre);
+
+        try {
+            const response = await fetch('/api/add_song', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                showMessage(data.message, 'success');
+                songTitleInput.value = '';
+                songArtistInput.value = '';
+                songDurationInput.value = '';
+                songGenreInput.value = '';
+                songFileInput.value = '';
+                addSongModal.style.display = 'none';
+                fetchPlaylistData();
+            } else {
+                showMessage(`Error al añadir canción: ${data.error || 'Desconocido'}`, 'danger');
+            }
+        } catch (error) {
+            showMessage('Error de red al añadir canción.', 'danger');
+            console.error('Error al añadir canción:', error);
+        }
+    }
+
+    function parseDuration(durationStr) {
+        const [minutes, seconds] = durationStr.split(':').map(Number);
+        return (minutes * 60) + (seconds || 0);
+    }
+
+    async function removeSong() {
+        try {
+            const response = await fetch('/api/remove_song', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                showMessage(data.message, 'success');
+                fetchPlaylistData();
+            } else {
+                showMessage(`Error al eliminar canción: ${data.error || 'Desconocido'}`, 'danger');
+            }
+        } catch (error) {
+            showMessage('Error de red al eliminar canción.', 'danger');
+            console.error('Error al eliminar:', error);
+        }
+    }
+
+    async function resetPlaylist() {
+        try {
+            const response = await fetch('/api/reset_playlist', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                showMessage(data.message, 'success');
+                fetchPlaylistData();
+            } else {
+                showMessage(`Error al resetear playlist: ${data.error || 'Desconocido'}`, 'danger');
+            }
+        } catch (error) {
+            showMessage('Error de red al resetear playlist.', 'danger');
+            console.error('Error al resetear:', error);
+        }
+    }
+
+    async function playSong() {
+        if (!currentCustomPlaylist.current_song) {
+            showMessage('No hay canción seleccionada.', 'warning');
+            return;
+        }
+        if (currentCustomPlaylist.current_song.file_path) {
+            try {
+                audioPlayer.src = currentCustomPlaylist.current_song.file_path;
+                audioPlayer.play();
+                playPauseBtn.textContent = '⏸️ Pause';
+                showMessage('Reproduciendo canción local.', 'success');
+            } catch (error) {
+                showMessage('Error al reproducir canción local.', 'danger');
+                console.error('Error al reproducir:', error);
+            }
+        } else if (currentCustomPlaylist.current_song.uri) {
+            try {
+                await playSpotifyTrack(currentCustomPlaylist.current_song.uri);
+                playPauseBtn.textContent = '⏸️ Pause';
+                showMessage('Reproduciendo canción de Spotify.', 'success');
+            } catch (error) {
+                showMessage('Error al reproducir canción de Spotify.', 'danger');
+                console.error('Error al reproducir Spotify:', error);
+            }
+        }
+    }
+
+    async function pauseSong() {
+        try {
+            if (currentCustomPlaylist.current_song && currentCustomPlaylist.current_song.file_path) {
+                audioPlayer.pause();
+                playPauseBtn.textContent = '▶️ Play';
+                showMessage('Canción pausada.', 'success');
+            } else if (currentCustomPlaylist.current_song && currentCustomPlaylist.current_song.uri) {
+                await spotifyPlayer.pause();
+                playPauseBtn.textContent = '▶️ Play';
+                showMessage('Canción de Spotify pausada.', 'success');
+            }
+        } catch (error) {
+            showMessage('Error al pausar canción.', 'danger');
+            console.error('Error al pausar:', error);
+        }
+    }
+
+    async function prevSong() {
+        try {
+            const response = await fetch('/api/previous_song', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                showMessage(data.message, 'success');
+                currentCustomPlaylist = { ...currentCustomPlaylist, current_song: data.current_song, current_song_index: currentCustomPlaylist.current_song_index - 1 };
+                updateCurrentSongDisplay();
+                updatePlaybackControls();
+                renderCustomPlaylist();
+            } else {
+                showMessage(`Error al ir a la canción anterior: ${data.error || 'Desconocido'}`, 'danger');
+            }
+        } catch (error) {
+            showMessage('Error de red al ir a la canción anterior.', 'danger');
+            console.error('Error al ir a la canción anterior:', error);
+        }
+    }
+
+    async function nextSong() {
+        try {
+            const response = await fetch('/api/next_song', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                showMessage(data.message, 'success');
+                currentCustomPlaylist = { ...currentCustomPlaylist, current_song: data.current_song, current_song_index: currentCustomPlaylist.current_song_index + 1 };
+                updateCurrentSongDisplay();
+                updatePlaybackControls();
+                renderCustomPlaylist();
+            } else {
+                showMessage(`Error al ir a la canción siguiente: ${data.error || 'Desconocido'}`, 'danger');
+            }
+        } catch (error) {
+            showMessage('Error de red al ir a la canción siguiente.', 'danger');
+            console.error('Error al ir a la canción siguiente:', error);
+        }
+    }
+
+    async function searchSongs(event) {
+        event.preventDefault();
+        const query = event.target.querySelector('input').value;
+        if (!query) return;
+
+        try {
+            const response = await fetch(`/api/search_spotify_tracks?query=${encodeURIComponent(query)}`);
+            const data = await response.json();
+
+            if (response.ok) {
+                renderSearchResults(data.tracks || []);
+            } else {
+                showMessage(`Error al buscar canciones: ${data.error || 'Desconocido'}`, 'danger');
+            }
+        } catch (error) {
+            showMessage('Error de red al buscar canciones.', 'danger');
+            console.error('Error en searchSongs:', error);
+        }
+    }
+
+    function renderSearchResults(tracks) {
+        if (!searchResults) return;
+        searchResults.innerHTML = '';
+        if (tracks.length === 0) {
+            searchResults.innerHTML = '<p>No se encontraron resultados.</p>';
+            return;
+        }
+
+        const ul = document.createElement('ul');
+        ul.className = 'list-group';
+        tracks.forEach(track => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+            li.textContent = `${track.title} - ${track.artist} (${formatDuration(track.duration)})`;
+            const addBtn = document.createElement('button');
+            addBtn.className = 'btn btn-success btn-sm ml-2';
+            addBtn.textContent = 'Añadir a playlist';
+            addBtn.onclick = async () => {
+                try {
+                    const response = await fetch('/api/add_song', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            title: track.title,
+                            artist: track.artist,
+                            duration: track.duration,
+                            genre: track.genre,
+                            uri: track.uri,
+                            file_path: null
+                        })
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                        showMessage(data.message, 'success');
+                        fetchPlaylistData();
+                    } else {
+                        showMessage(`Error al añadir canción: ${data.error || 'Desconocido'}`, 'danger');
+                    }
+                } catch (error) {
+                    showMessage('Error de red al añadir canción.', 'danger');
+                    console.error('Error al añadir:', error);
+                }
+            };
+            li.appendChild(addBtn);
+            ul.appendChild(li);
+        });
+        searchResults.appendChild(ul);
+    }
+
+    async function setStrategy(event) {
+        const strategyName = event.target.getAttribute('data-type');
         try {
             const response = await fetch('/api/playlist_type', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: type })
+                body: JSON.stringify({ type: strategyName })
             });
             const data = await response.json();
+
             if (response.ok) {
-                alert(data.message);
-                await fetchPlaylistData(); // Refresca la playlist después de cambiar el tipo
+                showMessage(data.message, 'success');
+                currentCustomPlaylist = data.playlist;
+                renderCustomPlaylist();
+                updatePlaybackControls();
+                if (currentPlaylistType) {
+                    currentPlaylistType.textContent = `Tipo de Playlist: ${currentCustomPlaylist.strategy_name || 'simple'}`;
+                }
             } else {
-                alert(`Error: ${data.error}`);
+                showMessage(`Error al cambiar estrategia: ${data.error || 'Desconocido'}`, 'danger');
             }
         } catch (error) {
-            console.error('Error al seleccionar el tipo de playlist:', error);
-            alert('Hubo un error al intentar cambiar el tipo de playlist.');
+            showMessage('Error de red al cambiar estrategia.', 'danger');
+            console.error('Error en setStrategy:', error);
         }
     }
 
-    /**
-     * Añade una nueva canción a la playlist actual.
-     * @param {object} songData - Objeto con los datos de la canción (title, artist, duration, genre).
-     */
-    async function addSong(songData) {
+    async function upgradePremium() {
         try {
-            const response = await fetch('/api/add_song', {
+            const response = await fetch('/api/upgrade_premium', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await response.json();
+            if (response.ok) {
+                showMessage(data.message, 'success');
+                updateUI();
+            } else {
+                showMessage(`Error al actualizar a Premium: ${data.error || 'Desconocido'}`, 'danger');
+            }
+        } catch (error) {
+            showMessage('Error de red al actualizar a Premium.', 'danger');
+            console.error('Error al actualizar:', error);
+        }
+    }
+
+    async function playSpotifyTrack(uri) {
+        if (!spotifyPlayer || !sessionStorage.getItem('device_id')) {
+            showMessage('El reproductor de Spotify no está listo o no hay dispositivo activo.', 'warning');
+            return;
+        }
+        try {
+            const response = await fetch('/api/play_track', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(songData)
+                body: JSON.stringify({ uri, device_id: sessionStorage.getItem('device_id') })
             });
             const data = await response.json();
             if (response.ok) {
-                alert(data.message);
-                await fetchPlaylistData(); // Refresca la playlist
-                addSongModal.style.display = 'none'; // Cierra el modal
+                showMessage(data.message, 'success');
             } else {
-                alert(`Error: ${data.error}`);
+                showMessage(`Error al reproducir en Spotify: ${data.error || 'Desconocido'}`, 'danger');
             }
         } catch (error) {
-            console.error('Error al añadir canción:', error);
-            alert('Hubo un error al intentar añadir la canción.');
+            showMessage('Error de red al reproducir en Spotify.', 'danger');
+            console.error('Error al reproducir en Spotify:', error);
         }
     }
 
-    /**
-     * Pasa a la siguiente canción en la playlist.
-     */
-    async function nextSong() {
-        try {
-            const response = await fetch('/api/next_song', { method: 'POST' });
-            const data = await response.json();
-            if (response.ok && data.current_song) {
-                currentSongInfo.textContent = `${data.current_song.title} - ${data.current_song.artist} (${data.current_song.duration})`;
-                await fetchPlaylistData(); // Re-renderiza para mostrar el marcador de canción actual
-            } else {
-                alert(data.message);
-            }
-        } catch (error) {
-            console.error('Error al reproducir la siguiente canción:', error);
-            alert('Hubo un error al intentar ir a la siguiente canción.');
-        }
-    }
-
-    /**
-     * Pasa a la canción anterior en la playlist (si la estructura lo permite).
-     */
-    async function previousSong() {
-        try {
-            const response = await fetch('/api/previous_song', { method: 'POST' });
-            const data = await response.json();
-            if (response.ok && data.current_song) {
-                currentSongInfo.textContent = `${data.current_song.title} - ${data.current_song.artist} (${data.current_song.duration})`;
-                await fetchPlaylistData(); // Re-renderiza para mostrar el marcador de canción actual
-            } else {
-                alert(data.message);
-            }
-        } catch (error) {
-            console.error('Error al reproducir la canción anterior:', error);
-            alert('Hubo un error al intentar ir a la canción anterior.');
-        }
-    }
-
-    /**
-     * Elimina la canción actual de la playlist.
-     */
-    async function removeSong() {
-        if (!confirm('¿Estás seguro de que quieres eliminar la canción actual?')) {
-            return;
-        }
-        try {
-            const response = await fetch('/api/remove_song', { method: 'POST' });
-            const data = await response.json();
-            alert(data.message);
-            await fetchPlaylistData(); // Refresca la playlist
-        } catch (error) {
-            console.error('Error al eliminar la canción:', error);
-            alert('Hubo un error al intentar eliminar la canción.');
-        }
-    }
-
-    /**
-     * Resetea la playlist actual (elimina todas las canciones).
-     */
-    async function resetPlaylist() {
-        if (!confirm('¿Estás seguro de que quieres resetear la playlist? Esto eliminará todas las canciones.')) {
-            return;
-        }
-        try {
-            const response = await fetch('/api/reset_playlist', { method: 'POST' });
-            const data = await response.json();
-            alert(data.message);
-            await fetchPlaylistData(); // Refresca la playlist
-        } catch (error) {
-            console.error('Error al resetear la playlist:', error);
-            alert('Hubo un error al intentar resetear la playlist.');
-        }
-    }
-
-    // --- Funciones para actualizar el DOM (Interfaz de Usuario) ---
-
-    /**
-     * Actualiza la lista de canciones mostrada en el DOM.
-     * @param {Array<object>} songs - Lista de objetos de canciones.
-     * @param {object} currentSong - Objeto de la canción actual (puede ser null).
-     */
-    function updateSongsList(songs, currentSong) {
-        songsList.innerHTML = ''; // Limpia la lista existente
-        if (songs.length === 0) {
-            songsList.innerHTML = '<li class="empty-list-message">No hay canciones en esta playlist.</li>';
-            return;
-        }
-        songs.forEach((song, index) => {
-            const li = document.createElement('li');
-            li.className = 'song-item';
-            // Añade la clase 'current-song' si es la canción que se está reproduciendo
-            if (currentSong && song.title === currentSong.title && song.artist === currentSong.artist && song.duration === currentSong.duration) {
-                li.classList.add('current-song');
-            }
-            li.innerHTML = `
-                <span class="song-number">${index + 1}.</span>
-                <span class="song-title">${song.title}</span> -
-                <span class="song-artist">${song.artist}</span>
-                <span class="song-duration">(${song.duration})</span>
-            `;
-            songsList.appendChild(li);
+    // Manejo de secciones
+    menuButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const section = button.getAttribute('data-section');
+            document.querySelectorAll('.content-section').forEach(s => s.classList.add('hidden'));
+            document.getElementById(`${section}-section`).classList.remove('hidden');
+            menuButtons.forEach(b => b.classList.remove('active'));
+            button.classList.add('active');
         });
-    }
+    });
 
-    /**
-     * Actualiza el estado (habilitado/deshabilitado) de los botones de tipo de playlist.
-     * @param {boolean} isPremium - True si el usuario es Premium, False de lo contrario.
-     */
-    function updatePlaylistTypeButtons(isPremium) {
-        playlistTypeButtons.forEach(button => {
-            const type = button.dataset.type;
-            if (type !== 'simple' && !isPremium) {
-                button.disabled = true; // Deshabilita botones para tipos premium si no es premium
-                button.classList.add('disabled-premium');
-            } else {
-                button.disabled = false;
-                button.classList.remove('disabled-premium');
-            }
-        });
-    }
-
-    /**
-     * Muestra una sección específica del contenido principal y oculta las demás.
-     * También actualiza el estado 'active' de los botones del menú.
-     * @param {string} sectionId - El ID de la sección a mostrar (ej. 'home-section').
-     */
-    function showSection(sectionId) {
-        contentSections.forEach(section => {
-            section.classList.remove('active');
-            section.classList.add('hidden'); // Asegura que esté oculta
-        });
-        // Muestra la sección deseada
-        document.getElementById(sectionId).classList.add('active');
-        document.getElementById(sectionId).classList.remove('hidden');
-
-        // Actualiza el estado 'active' en los botones del menú principal
-        mainMenuButtons.forEach(button => {
-            // El dataset.section es 'home', 'search', 'your-library', 'playlists-manager'
-            // El sectionId es 'home-section', 'search-section', etc.
-            if (`${button.dataset.section}-section` === sectionId) {
-                button.classList.add('active');
-            } else {
-                button.classList.remove('active');
-            }
-        });
-    }
-
-
-    // --- Event Listeners Globales ---
-
-    // Botón para actualizar a Premium
-    upgradeBtn.addEventListener('click', upgradeToPremium);
-
-    // Event listeners para los botones de tipo de playlist en la barra lateral
+    // Manejo de tipos de playlist
     playlistTypeButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            selectPlaylistType(button.dataset.type);
-        });
+        button.addEventListener('click', setStrategy);
     });
 
-    // Event listeners para los botones del menú principal (navegación)
-    mainMenuButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const sectionToShow = `${button.dataset.section}-section`;
-            showSection(sectionToShow);
-            // Si se va a la sección de gestión de playlists, refresca sus datos
-            if (button.dataset.section === 'playlists-manager') {
-                fetchPlaylistData();
+    // Manejo de eventos
+    if (addSongBtn) {
+        addSongBtn.addEventListener('click', () => {
+            addSongModal.style.display = 'block';
+        });
+    }
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', () => {
+            addSongModal.style.display = 'none';
+        });
+    }
+    if (addSongForm) {
+        addSongForm.addEventListener('submit', addSong);
+    }
+    if (removeSongBtn) {
+        removeSongBtn.addEventListener('click', removeSong);
+    }
+    if (resetPlaylistBtn) {
+        resetPlaylistBtn.addEventListener('click', resetPlaylist);
+    }
+    if (prevBtn) {
+        prevBtn.addEventListener('click', prevSong);
+    }
+    if (nextBtn) {
+        nextBtn.addEventListener('click', nextSong);
+    }
+    if (playPauseBtn) {
+        playPauseBtn.addEventListener('click', () => {
+            if ((audioPlayer && !audioPlayer.paused) || (spotifyPlayer && playPauseBtn.textContent === '⏸️ Pause')) {
+                pauseSong();
+            } else {
+                playSong();
             }
         });
-    });
-
-    // --- Event Listeners para el Modal de Añadir Canción ---
-    addSongBtn.addEventListener('click', () => {
-        addSongModal.style.display = 'flex'; // Usar flex para centrar
-        // Limpiar campos del formulario al abrir
-        songTitleInput.value = '';
-        songArtistInput.value = '';
-        songDurationInput.value = '';
-        songGenreInput.value = '';
-    });
-
-    closeModalButton.addEventListener('click', () => {
-        addSongModal.style.display = 'none';
-    });
-
-    // Cierra el modal si se hace clic fuera del contenido
-    window.addEventListener('click', (event) => {
-        if (event.target == addSongModal) {
-            addSongModal.style.display = 'none';
-        }
-    });
-
-    submitAddSongButton.addEventListener('click', () => {
-        const songData = {
-            title: songTitleInput.value.trim(),
-            artist: songArtistInput.value.trim(),
-            duration: songDurationInput.value.trim(),
-            genre: songGenreInput.value.trim()
-        };
-
-        // Simple validación de entrada
-        if (!songData.title || !songData.artist || !songData.duration) {
-            alert('Por favor, completa al menos el título, artista y duración de la canción.');
-            return;
-        }
-        addSong(songData);
-    });
-
-    // --- Event Listeners para los Controles del Reproductor y Playlist ---
-    nextBtn.addEventListener('click', nextSong);
-    prevBtn.addEventListener('click', previousSong);
-    removeSongBtn.addEventListener('click', removeSong);
-    resetPlaylistBtn.addEventListener('click', resetPlaylist);
-
-
-    // --- Inicialización de la Aplicación ---
-    // Se ejecuta cuando el DOM está completamente cargado
-    async function initializeApp() {
-        await fetchUserInfo(); // Primero, carga la información del usuario
-        await fetchPlaylistData(); // Luego, carga los datos de la playlist actual
-        showSection('home-section'); // Muestra la sección de inicio por defecto
+    }
+    if (searchBtn) {
+        searchBtn.addEventListener('click', searchSongs);
+    }
+    if (searchSectionBtn) {
+        searchSectionBtn.addEventListener('click', searchSongs);
+    }
+    if (upgradeBtn) {
+        upgradeBtn.addEventListener('click', upgradePremium);
+    }
+    if (audioPlayer && volumeControl) {
+        audioPlayer.volume = volumeControl.value;
+        volumeControl.addEventListener('input', (event) => {
+            audioPlayer.volume = event.target.value;
+            if (spotifyPlayer) {
+                spotifyPlayer.setVolume(event.target.value);
+            }
+        });
+    }
+    if (audioPlayer) {
+        audioPlayer.addEventListener('ended', () => {
+            console.log("Canción terminada. Pasando a la siguiente...");
+            nextSong();
+        });
     }
 
-    initializeApp(); // Llama a la función de inicialización
+    updateUI();
 });

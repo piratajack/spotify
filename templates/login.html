@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bienvenido a Spotify 2.0</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <div class="login-container">
+        <header>
+            <h1>Spotify 2.0</h1>
+            <p class="tagline">Tu experiencia musical personalizada</p>
+        </header>
+
+        <main>
+            <p>Para explorar y disfrutar de tu música, inicia sesión con tu cuenta de Spotify.</p>
+            <a href="/login" class="spotify-login-btn">
+                Iniciar Sesión con Spotify
+            </a>
+            <p class="about-link"><a href="#about-section">¿Qué es Spotify 2.0?</a></p>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 Spotify 2.0. Todos los derechos reservados.</p>
+        </footer>
+    </div>
+
+    <section id="about-section" class="about-section">
+        <h2>Acerca de Spotify 2.0</h2>
+        <p>Spotify 2.0 es tu plataforma personal para interactuar con tu biblioteca musical de Spotify de una manera única. Accede a tus playlists, busca tus canciones favoritas y gestiona tu experiencia musical, todo potenciado por la API oficial de Spotify.</p>
+        <p>Esta aplicación no almacena tu música ni tus datos personales, solo actúa como una interfaz para tu cuenta de Spotify existente.</p>
+    </section>
+
+</body>
+</html>

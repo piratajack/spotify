@@ -5,14 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spotify 2.0</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+   
 </head>
 <body>
+     
+    <div id="message-container"></div>
     <header>
-        <h1>Spotify</h1>
+        <h1 id="welcome-message">Hola, {{ user_profile.display_name | default('Usuario') }}!</h1>
+        <h2>Buscar Música</h2>
+        <input type="text" id="search-input" placeholder="Busca canciones o artistas...">
+        <button id="search-btn">Buscar</button>
         <div class="user-info">
             <span id="username-display"></span> (<span id="premium-status"></span>)
             <button id="upgrade-btn" style="display: none;">¡Hazte Premium!</button>
-            <button id="upgrade-btn" style="display: none;">nosotros</button>
+            <button id="about-btn" style="display: none;">Nosotros</button>
         </div>
     </header>
 
@@ -22,22 +28,23 @@
             <nav>
                 <ul id="main-menu">
                     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-          <span class="navbar-toggler-icon"></span>
-        </button>
-      
-                    <li><button data-section="home" class="active" >🏠 Inicio</button></li>
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <li><button data-section="home" class="active">🏠 Inicio</button></li>
                     <li><button data-section="search">🔍 Buscar</button></li>
                     <li><button data-section="your-library">📚 Tu Biblioteca</button></li>
                     <li><button data-section="playlists-manager">🎶 Gestión de Playlists</button></li>
-                    </ul>
+                </ul>
             </nav>
 
-            <hr> <h2>Tipos de Playlists</h2>
+            <hr>
+            <h2>Tipos de Playlists</h2>
             <ul id="playlist-types">
                 <li><button data-type="simple">Simple</button></li>
-                <li><button data-type="double">Doble</button></li>
-                <li><button data-type="circular_simple">Circular Simple</button></li>
-                <li><button data-type="circular_double">Circular Doble</button></li>
+                <li><button data-type="doubly">Doble</button></li>
+                <li><button data-type="circular">Circular</button></li>
+                <li><button data-type="circular_doubly">Circular Doble</button></li>
+                <li><button data-type="shuffle">Aleatorio</button></li>
             </ul>
         </aside>
 
@@ -45,13 +52,14 @@
             <div id="home-section" class="content-section active">
                 <h2>Bienvenido a tu Spotify Casero</h2>
                 <p>Explora tu música y gestiona tus playlists.</p>
-                </div>
+            </div>
 
             <div id="search-section" class="content-section hidden">
                 <h2>Buscar Música</h2>
-                <input type="text" placeholder="Escribe el nombre de la canción o artista...">
-                <button>Buscar</button>
-                </div>
+                <input type="text" id="search-input-section" placeholder="Escribe el nombre de la canción o artista...">
+                <button id="search-section-btn">Buscar</button>
+                <div id="search-results"></div>
+            </div>
 
             <div id="your-library-section" class="content-section hidden">
                 <h2>Tu Biblioteca</h2>
@@ -71,40 +79,51 @@
                     <p id="current-song-info">Nada reproduciéndose.</p>
                     <div class="player-controls">
                         <button id="prev-btn">⏮️ Anterior</button>
+                        <button id="play-pause-btn">▶️ Play</button>
                         <button id="next-btn">Siguiente ⏭️</button>
                     </div>
                 </div>
 
                 <div class="playlist-display">
                     <h3>Canciones en la Playlist:</h3>
-                    <ul id="songs-list">
-                        </ul>
+                    <ul id="songs-list" class="list-group"></ul>
                 </div>
             </div>
-
         </section>
     </main>
 
     <footer>
-        <p>&copy; 2025 Spotify 2.0. Todos los derechos reservados.</p>
+        <p>© 2025 Spotify 2.0. Todos los derechos reservados.</p>
     </footer>
 
     <div id="addSongModal" class="modal">
         <div class="modal-content">
-            <span class="close-button">&times;</span>
+            <span class="close-button">×</span>
             <h2>Añadir Nueva Canción</h2>
-            <label for="songTitle">Título:</label>
-            <input type="text" id="songTitle"><br>
-            <label for="songArtist">Artista:</label>
-            <input type="text" id="songArtist"><br>
-            <label for="songDuration">Duración (ej. 3:30):</label>
-            <input type="text" id="songDuration"><br>
-            <label for="songGenre">Género:</label>
-            <input type="text" id="songGenre"><br>
-            <button id="submitAddSong">Añadir</button>
+            <form id="add-song-form">
+                <label for="songTitle">Título:</label>
+                <input type="text" id="songTitle" required><br>
+                <label for="songArtist">Artista:</label>
+                <input type="text" id="songArtist" required><br>
+                <label for="songDuration">Duración (ej. 3:30):</label>
+                <input type="text" id="songDuration"><br>
+                <label for="songGenre">Género:</label>
+                <input type="text" id="songGenre"><br>
+                <label for="songFile">Archivo (mp3/wav):</label>
+                <input type="file" id="songFile" accept=".mp3,.wav"><br>
+                <button type="submit" id="submitAddSong">Añadir</button>
+            </form>
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <audio id="audio-player" controls></audio>
+    <input type="range" id="volume-control" min="0" max="1" step="0.1" value="0.5">
+
+    <div id="user-data" style="display: none;">{{ user_profile | tojson | safe }}</div>
+   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script defer src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script defer src="https://sdk.scdn.co/spotify-player.js"></script>
 </body>
+
 </html>
